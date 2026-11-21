@@ -1,0 +1,53 @@
+
+name: Build NEXORA APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract project ZIP
+        run: |
+          ZIP_FILE=$(find . -type f -iname '*.zip' | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP project tidak ditemukan"
+            exit 1
+          fi
+          mkdir extracted
+          unzip "$ZIP_FILE" -d extracted
+
+      - name: Build APK
+        run: |
+          PROJECT_FILE=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
+          if [ -z "$PROJECT_FILE" ]; then
+            echo "Project Gradle tidak ditemukan"
+            exit 1
+          fi
+          cd "$(dirname "$PROJECT_FILE")"
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXORA-APK-debug
+          path: extracted/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
